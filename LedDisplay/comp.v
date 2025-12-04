@@ -1,9 +1,9 @@
 module comp_4k#(
   parameter width = 10
 )(
-  input [(width-1):0]  in1,  // CORREGIDO: width-1
-  input [(width-1):0]  in2,  // CORREGIDO: width-1
-  output reg           out
+  input [width:0]  in1,
+  input [width:0]  in2,  
+  output  reg       out
 );
 
   always @(*) begin

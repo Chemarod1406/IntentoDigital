@@ -24,6 +24,7 @@ module ctrl_lp4k(
  parameter START       = 4'b0000;
  parameter GET_PIXEL   = 4'b0001;
  parameter INC_COL     = 4'b0010;
+ parameter ROW_READY   = 4'b0100;
  parameter SEND_ROW    = 4'b0011;
  parameter DELAY_ROW   = 4'b0101;
  parameter INC_ROW     = 4'b0110;
@@ -33,63 +34,65 @@ module ctrl_lp4k(
 
  reg [3:0] state;
 
+
  always @(posedge clk) begin
   if (rst) begin
-    state <= START;
+    state = START;
   end else begin
     case(state)
       START: begin
         if(init)
-          state <= GET_PIXEL;
+          state = GET_PIXEL;
         else
-          state <= START;
+          state = START;
       end
 
       GET_PIXEL: begin
-        state <= INC_COL;
+        state = INC_COL;
       end
 
       INC_COL: begin
         if(ZC)
-          state <= SEND_ROW;
+          state = SEND_ROW;
         else 
-          state <= GET_PIXEL;  // CORREGIDO: Volver a GET_PIXEL, no quedarse en INC_COL
+          state = INC_COL;
       end
 
+
       SEND_ROW: begin
-        state <= DELAY_ROW;
+        state = DELAY_ROW;
       end
 
       DELAY_ROW: begin
         if(ZD)
-          state <= NEXT_BIT;
+          state = NEXT_BIT;
         else
-          state <= DELAY_ROW;
+          state = DELAY_ROW;
       end
 
       NEXT_BIT: begin
-        state <= NEXT_DELAY;
+        state = NEXT_DELAY;
       end
 
       NEXT_DELAY: begin
         if(ZI)
-          state <= INC_ROW;
+          state = INC_ROW;
         else
-          state <= DELAY_ROW;  // CORREGIDO: Ir a DELAY_ROW para nuevo bit
+          state = GET_PIXEL;
       end
 
       INC_ROW: begin
-        state <= READY_FRAME;
+        state = READY_FRAME;
       end
 
       READY_FRAME: begin
         if(ZR)
-          state <= START;
+          state = START;
         else
-          state <= GET_PIXEL;
+          state = GET_PIXEL;
       end
 
-      default: state <= START;
+      default: state = START;
     endcase
   end
 end
@@ -99,21 +102,21 @@ always @(*) begin
       START: begin
         RST_R = 0; RST_C = 0; RST_D = 0; RST_I = 0;
         INC_R = 0; INC_C = 0; INC_D = 0; INC_I = 0;
-        LD    = 0; SHD   = 0;
+        LD    = 1; SHD   = 0;
         LATCH = 0; NOE   = 1; PX_CLK_EN = 0;
       end
 
       GET_PIXEL: begin
         RST_R = 1; RST_C = 1; RST_D = 1; RST_I = 1;
         INC_R = 0; INC_C = 0; INC_D = 0; INC_I = 0;
-        LD    = 1; SHD   = 0;  // CARGAR pixel en shift register
+        LD    = 0; SHD   = 0;
         LATCH = 0; NOE   = 1; PX_CLK_EN = 0;
       end
 
       INC_COL: begin
         RST_R = 1; RST_C = 1; RST_D = 1; RST_I = 1;
         INC_R = 0; INC_C = 1; INC_D = 0; INC_I = 0;
-        LD    = 0; SHD   = 1;  // SHIFT para siguiente pixel
+        LD    = 0; SHD   = 0;
         LATCH = 0; NOE   = 1; PX_CLK_EN = 1;
       end
 
@@ -121,34 +124,37 @@ always @(*) begin
         RST_R = 1; RST_C = 1; RST_D = 1; RST_I = 1;
         INC_R = 0; INC_C = 0; INC_D = 0; INC_I = 0;
         LD    = 0; SHD   = 0;
-        LATCH = 1; NOE   = 1; PX_CLK_EN = 0;  // Latch pero NOE todavía alto
+        LATCH = 1; NOE   = 0; PX_CLK_EN = 0;
       end
 
       DELAY_ROW: begin
         RST_R = 1; RST_C = 1; RST_D = 1; RST_I = 1;
         INC_R = 0; INC_C = 0; INC_D = 1; INC_I = 0;
         LD    = 0; SHD   = 0;
-        LATCH = 0; NOE   = 0; PX_CLK_EN = 0;  // NOE bajo = LEDs encendidos
+        LATCH = 0; NOE   = 0; PX_CLK_EN = 0;
       end
 
+
       NEXT_BIT: begin
-        RST_R = 1; RST_C = 0; RST_D = 0; RST_I = 1;  // Resetear columnas y delay
-        INC_R = 0; INC_C = 0; INC_D = 0; INC_I = 1;  // Incrementar bit
-        LD    = 0; SHD   = 0;
-        LATCH = 0; NOE   = 1; PX_CLK_EN = 0;  // Apagar mientras cambiamos
+        RST_R = 1; RST_C = 1; RST_D = 0; RST_I = 1;
+        INC_R = 0; INC_C = 0; INC_D = 0; INC_I = 1;
+        LD    = 0; SHD   = 1;
+        LATCH = 0; NOE   = 0; PX_CLK_EN = 0;
       end
+
 
       NEXT_DELAY: begin
         RST_R = 1; RST_C = 1; RST_D = 1; RST_I = 1;
-        INC_R = 0; INC_C = 0; INC_D = 0; INC_I = 0;
+        INC_R = 0; INC_C = 0; INC_D = 1; INC_I = 0;
         LD    = 0; SHD   = 0;
-        LATCH = 0; NOE   = 1; PX_CLK_EN = 0;
+        LATCH = 0; NOE   = 0; PX_CLK_EN = 0;
       end
 
+
       INC_ROW: begin
-        RST_R = 1; RST_C = 0; RST_D = 0; RST_I = 0;  // Resetear todo excepto fila
+        RST_R = 1; RST_C = 0; RST_D = 0; RST_I = 1;
         INC_R = 1; INC_C = 0; INC_D = 0; INC_I = 0;
-        LD    = 0; SHD   = 0;
+        LD    = 1; SHD   = 1;
         LATCH = 0; NOE   = 1; PX_CLK_EN = 0;
       end
 
@@ -160,7 +166,7 @@ always @(*) begin
       end
 
       default: begin
-        RST_R = 0; RST_C = 0; RST_D = 0; RST_I = 0;
+        RST_R = 0; RST_C = 0; RST_D = 0; RST_I = 1;
         INC_R = 0; INC_C = 0; INC_D = 0; INC_I = 0;
         LD    = 0; SHD   = 0;
         LATCH = 0; NOE   = 1; PX_CLK_EN = 0;
@@ -169,6 +175,7 @@ always @(*) begin
     endcase
 end
 
+
 `ifdef BENCH
 reg [8*40:1] state_name;
 always @(*) begin
@@ -176,6 +183,7 @@ always @(*) begin
     START       : state_name = "START";
     GET_PIXEL   : state_name = "GET_PIXEL";
     INC_COL     : state_name = "INC_COL";
+    ROW_READY   : state_name = "ROW_READY";
     SEND_ROW    : state_name = "SEND_ROW";
     DELAY_ROW   : state_name = "DELAY_ROW";
     INC_ROW     : state_name = "INC_ROW";
