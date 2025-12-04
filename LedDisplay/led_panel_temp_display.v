@@ -15,7 +15,7 @@ module led_panel_temp_display(
 );
 
     // =========================================================================
-    // GENERADOR DE RELOJ PARA LA MATRIZ (~3MHz)
+    // GENERADOR DE RELOJ PARA LA MATRIZ (~3MHz desde 25MHz)
     // =========================================================================
     reg [2:0] clk_div = 0;
     reg clk_matrix = 0;
@@ -66,11 +66,12 @@ module led_panel_temp_display(
     );
     
     // =========================================================================
-    // CONTADORES - TU count.v USA reset ACTIVO ALTO
+    // CONTADORES - count.v USA reset ACTIVO ALTO
+    // RST_R=1 significa "NO resetear", por eso invertimos con ~RST_R
     // =========================================================================
     count #(.width(5)) cnt_row(
         .clk(clk_matrix),
-        .reset(~RST_R),    // Invertimos porque ctrl_lp4k da RST_R=1 cuando NO quiere resetear
+        .reset(~RST_R),    // Invertir: FSM manda 1=activo, count espera 1=reset
         .inc(INC_R),
         .outc(row_count),
         .zero(ZR)
@@ -102,9 +103,18 @@ module led_panel_temp_display(
     
     // =========================================================================
     // GENERADORES DE PÍXELES
+    // *** CORRECCIÓN CRÍTICA: Direccionamiento correcto ***
+    // Para matriz 1:16 scan, la mitad superior usa filas 0-15,
+    // la mitad inferior usa filas 16-31
     // =========================================================================
-    wire [11:0] addr_upper = {row_count, col_count};
-    wire [11:0] addr_lower = {row_count + 5'd32, col_count};
+    
+    // Calcular filas para cada mitad
+    wire [4:0] row_upper = row_count;           // Filas 0-31 (mitad superior)
+    wire [4:0] row_lower = row_count + 5'd16;   // Filas 16-47 (mitad inferior)
+    
+    // Construir direcciones completas: {row[4:0], col[5:0]} = 11 bits
+    wire [10:0] addr_upper = {row_upper, col_count};
+    wire [10:0] addr_lower = {row_lower, col_count};
     
     wire [23:0] pixel_upper, pixel_lower;
     
@@ -113,7 +123,7 @@ module led_panel_temp_display(
         .rst(rst),
         .celsius(c_val),
         .fahrenheit(f_val),
-        .pixel_addr(addr_upper),
+        .pixel_addr({1'b0, addr_upper}),  // Expandir a 12 bits (11 usados)
         .pixel_data(pixel_upper)
     );
     
@@ -122,7 +132,7 @@ module led_panel_temp_display(
         .rst(rst),
         .celsius(c_val),
         .fahrenheit(f_val),
-        .pixel_addr(addr_lower),
+        .pixel_addr({1'b0, addr_lower}),
         .pixel_data(pixel_lower)
     );
     
@@ -132,7 +142,7 @@ module led_panel_temp_display(
     wire [23:0] shift_upper, shift_lower;
     reg [23:0] pixel_buffer_upper, pixel_buffer_lower;
     
-    // Capturar píxel cuando se carga
+    // Capturar píxel cuando FSM indica LOAD
     always @(negedge clk_matrix) begin
         if (LD) begin
             pixel_buffer_upper <= pixel_upper;
@@ -157,7 +167,7 @@ module led_panel_temp_display(
     );
     
     // =========================================================================
-    // MULTIPLEXORES - Selección de bit para PWM
+    // MULTIPLEXORES - Selección de bit para PWM de 4 bits
     // =========================================================================
     wire [5:0] mux_upper, mux_lower;
     
@@ -174,14 +184,24 @@ module led_panel_temp_display(
     );
     
     // =========================================================================
-    // SALIDAS
+    // SALIDAS AL PANEL HUB75
+    // *** CORRECCIÓN CRÍTICA: Mapeo correcto de pines RGB ***
+    // 
+    // HUB75 espera: R0, G0, B0, R1, G1, B1
+    // mux_led retorna [5:0]: {R0, G0, B0, R1, G1, B1}
+    //   [5] = R0 (rojo mitad superior)
+    //   [4] = G0 (verde mitad superior)
+    //   [3] = B0 (azul mitad superior)
+    //   [2] = R1 (rojo mitad inferior)
+    //   [1] = G1 (verde mitad inferior)
+    //   [0] = B1 (azul mitad inferior)
     // =========================================================================
+    
     assign ROW = row_count;
     assign LP_CLK = PX_CLK_EN ? clk_matrix : 1'b0;
     
-    // Formato de mux_led: R0G0B0R1G1B1 (bits [5:0])
-    // Extraer R, G, B
-    assign RGB0 = {mux_upper[5], mux_upper[3], mux_upper[1]};
-    assign RGB1 = {mux_lower[5], mux_lower[3], mux_lower[1]};
+    // Extraer RGB para cada mitad de la pantalla
+    assign RGB0 = {mux_upper[5], mux_upper[4], mux_upper[3]};  // R0, G0, B0
+    assign RGB1 = {mux_lower[2], mux_lower[1], mux_lower[0]};  // R1, G1, B1
 
 endmodule

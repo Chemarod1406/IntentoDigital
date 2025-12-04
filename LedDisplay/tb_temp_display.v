@@ -10,6 +10,12 @@ module tb_temp_display;
     wire [4:0] ROW;
     wire [2:0] RGB0, RGB1;
 
+    // Contadores para diagnóstico
+    integer pixel_count = 0;
+    integer frame_count = 0;
+    integer red_pixels = 0;
+    integer blue_pixels = 0;
+    
     // 1. GENERACIÓN DE RELOJ (25MHz)
     initial begin
         clk = 0;
@@ -17,11 +23,10 @@ module tb_temp_display;
     end
 
     // 2. RESISTENCIAS PULL-UP (CRUCIAL PARA I2C)
-    // Sin esto, la simulación lee 'Z' en lugar de '1' y falla.
     pullup(I2C_SDA);
     pullup(I2C_SCL);
 
-    // 3. INSTANCIA DEL TOP MODULE
+    // 3. INSTANCIA DEL DUT
     temp_display_top dut(
         .clk(clk),
         .rst(rst),
@@ -35,52 +40,148 @@ module tb_temp_display;
         .RGB1(RGB1)
     );
 
-    // 4. MODELO DEL SENSOR I2C (Simula el LM75)
+    // 4. MODELO DEL SENSOR I2C
     i2c_slave_lm75_model slave(
         .SDA(I2C_SDA),
         .SCL(I2C_SCL)
     );
 
-    // 5. ESTÍMULOS Y CONTROL
-    initial begin
-        $display("=== Iniciando test de display de temperatura ===");
-        $dumpfile("temp_display_dump.vcd"); // Para ver ondas en GTKWave
-        $dumpvars(0, tb_temp_display);
-        
-        // --- SECUENCIA DE RESET CORREGIDA ---
-        rst = 1;      // Reset activado
-        #100;
-        rst = 0;      // Reset desactivado (El sistema empieza a funcionar)
-        // Eliminada la línea "rst = 1" que volvía a apagar todo
-        
-        // Esperar tiempo suficiente para:
-        // a) Que el i2c master inicialice (power up wait)
-        // b) Que se transmita la temperatura
-        // c) Que la pantalla empiece a barrer
-        #60000000;  // 10ms (suficiente para ver actividad)
-        
-        $display("\nTemperatura leída interna (DUT):");
-        $display("  Celsius: %d (Esperado: 25 o 30 segun modelo)", dut.c_data);
-        $display("  Fahrenheit: %d", dut.f_data);
-        
-        $display("\nSeñales LED Matrix (Estado actual):");
-        $display("  ROW: %b", ROW);
-        $display("  RGB0: %b", RGB0);
-        $display("  RGB1: %b", RGB1);
-        
-        if(dut.c_data == 0) 
-            $display("ERROR: La temperatura sigue siendo 0. Revisa las pullups.");
-        else
-            $display("EXITO: Lectura de temperatura correcta.");
-
-        $display("\n=== Test completado ===");
-        $finish;
-    end
-    // --- MONITOR DE PÍXELES ENCENDIDOS ---
-    // Esto imprimirá un mensaje cada vez que el controlador mande color a la pantalla
-    always @(RGB0 or RGB1) begin
-        if(RGB0 != 0 || RGB1 != 0) begin
-            $display("time: %t | ¡PÍXEL ENCENDIDO! -> Row: %d, RGB0: %b, RGB1: %b", $time, ROW, RGB0, RGB1);
+    // 5. MONITOR DE PÍXELES ENCENDIDOS
+    always @(posedge clk) begin
+        if (!NOE && (RGB0 !== 3'bxxx && RGB1 !== 3'bxxx)) begin
+            if (RGB0 != 3'b000) begin
+                pixel_count = pixel_count + 1;
+                // Detectar colores
+                if (RGB0[2]) red_pixels = red_pixels + 1;    // R0 = bit 2
+                if (RGB0[0]) blue_pixels = blue_pixels + 1;  // B0 = bit 0
+            end
+            if (RGB1 != 3'b000) begin
+                pixel_count = pixel_count + 1;
+                if (RGB1[2]) red_pixels = red_pixels + 1;
+                if (RGB1[0]) blue_pixels = blue_pixels + 1;
+            end
         end
     end
+    
+    // 6. DETECTOR DE FRAMES COMPLETOS
+    reg [4:0] last_row = 5'b11111;
+    always @(posedge clk) begin
+        if (ROW == 0 && last_row != 0) begin
+            frame_count = frame_count + 1;
+            if (frame_count > 0) begin
+                $display("[Frame %0d] Píxeles: %0d (Rojos: %0d, Azules: %0d)", 
+                         frame_count, pixel_count, red_pixels, blue_pixels);
+            end
+            pixel_count = 0;
+            red_pixels = 0;
+            blue_pixels = 0;
+        end
+        last_row = ROW;
+    end
+
+    // 7. MONITOR BÁSICO DE SEÑALES
+    always @(posedge clk) begin
+        if ($time > 100000000 && $time < 100010000) begin  // Solo primeros 10us después de init
+            $display("[%t] ROW=%d NOE=%b LATCH=%b RGB0=%b RGB1=%b", 
+                     $time, ROW, NOE, LATCH, RGB0, RGB1);
+        end
+    end
+
+    // 8. ESTÍMULOS PRINCIPALES
+    initial begin
+        $display("\n========================================");
+        $display("   TEST DE DISPLAY DE TEMPERATURA");
+        $display("========================================\n");
+        
+        $dumpfile("temp_display_dump.vcd");
+        $dumpvars(0, tb_temp_display);
+        
+        // Reset inicial
+        rst = 1;
+        #200;
+        rst = 0;
+        
+        $display("[INFO] Sistema iniciado, esperando lectura I2C...");
+        
+        // Esperar a que termine el Power-On Reset interno
+        wait(dut.auto_rst == 0);
+        #1000;
+        $display("[INFO] Power-On Reset completado");
+        
+        // Esperar lectura de temperatura
+        wait(dut.c_data != 0);
+        #5000;
+        
+        $display("\n========================================");
+        $display("   TEMPERATURA LEÍDA DEL SENSOR");
+        $display("========================================");
+        $display("  Celsius:    %0d°C", dut.c_data);
+        $display("  Fahrenheit: %0d°F", dut.f_data);
+        $display("========================================\n");
+        
+        // DEBUG: Verificar señales críticas
+        $display("[DEBUG] sys_rst=%b init=%b", dut.sys_rst, dut.matrix_ctrl.init);
+        $display("[DEBUG] clk_matrix=%b", dut.matrix_ctrl.clk_matrix);
+        
+        // Esperar que se generen varios frames
+        $display("[INFO] Esperando frames de video...\n");
+        
+        // Esperar más tiempo para ver actividad
+        #50_000_000;  // 50ms adicionales
+        
+        if (frame_count == 0) begin
+            $display("\n⚠️  ADVERTENCIA: No se detectaron frames después de 50ms");
+            $display("[DEBUG] Última fila vista: %d", ROW);
+            $display("[DEBUG] NOE=%b LATCH=%b", NOE, LATCH);
+        end
+        
+        wait(frame_count >= 3);
+        #100000;  // 100us más
+        
+        // RESULTADOS FINALES
+        $display("\n========================================");
+        $display("   RESULTADOS DEL TEST");
+        $display("========================================");
+        $display("Frames generados: %0d", frame_count);
+        $display("Píxeles totales:  %0d", pixel_count);
+        $display("Píxeles rojos:    %0d (Celsius)", red_pixels);
+        $display("Píxeles azules:   %0d (Fahrenheit)", blue_pixels);
+        
+        // Verificaciones
+        if (dut.c_data == 0) begin
+            $display("\n❌ ERROR: Temperatura no leída del sensor");
+        end else begin
+            $display("\n✅ Temperatura leída correctamente");
+        end
+        
+        if (frame_count == 0) begin
+            $display("❌ ERROR: No se generaron frames");
+        end else begin
+            $display("✅ Frames generados correctamente");
+        end
+        
+        if (pixel_count == 0) begin
+            $display("❌ ERROR: No se encendieron píxeles");
+        end else begin
+            $display("✅ Píxeles visibles en pantalla");
+        end
+        
+        if (red_pixels > 0 && blue_pixels > 0) begin
+            $display("✅ Ambos colores (Celsius y Fahrenheit) visibles");
+        end else begin
+            $display("⚠️  ADVERTENCIA: Solo se ve un color");
+        end
+        
+        $display("========================================\n");
+        $finish;
+    end
+    
+    // 9. TIMEOUT DE SEGURIDAD (500ms)
+    initial begin
+        #500_000_000;
+        $display("\n⏱️  TIMEOUT: Test excedió 500ms");
+        $display("Frames completados: %0d", frame_count);
+        $finish;
+    end
+
 endmodule
