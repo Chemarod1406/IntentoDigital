@@ -1,6 +1,4 @@
 `timescale 1ns / 1ps
-
-// Basado en led_panel_4k.v del profesor pero simplificado
 module led_temp_simple(
     input         clk,
     input         rst,
@@ -15,9 +13,6 @@ module led_temp_simple(
     output [2:0]  RGB1
 );
 
-    // =========================================================================
-    // SEÑALES DE CONTROL (como el código del profesor)
-    // =========================================================================
     wire w_ZR, w_ZC, w_ZD, w_ZI;
     wire w_LD, w_SHD;
     wire w_RST_R, w_RST_C, w_RST_D, w_RST_I;
@@ -29,15 +24,12 @@ module led_temp_simple(
     
     wire [5:0] COL;
     wire [11:0] PIX_ADDR;
-    wire [23:0] pixel_data;  // Generado en tiempo real
+    wire [23:0] pixel_data;
     
     wire tmp_noe, tmp_latch;
     assign LATCH = ~tmp_latch;
     assign NOE = tmp_noe;
 
-    // =========================================================================
-    // DIVISOR DE RELOJ (igual que el profesor)
-    // =========================================================================
     reg clk1;
     reg [4:0] clk_counter;
     
@@ -57,11 +49,9 @@ module led_temp_simple(
     
     assign PIX_ADDR = {ROW, COL};
     assign LP_CLK = clk1 & PX_CLK_EN;
+    assign delay = 11'd10;  // DELAY FIJO en lugar de shift register
 
-    // =========================================================================
-    // MÓDULOS DE CONTROL (exactamente como el profesor)
-    // =========================================================================
-    count #(.width(4))  count_row(
+    count #(.width(5))  count_row(
         .clk(clk1),
         .reset(w_RST_R),
         .inc(w_INC_R),
@@ -69,7 +59,7 @@ module led_temp_simple(
         .zero(w_ZR)
     );
     
-    count #(.width(5))  count_col(
+    count #(.width(6))  count_col(
         .clk(clk1),
         .reset(w_RST_C),
         .inc(w_INC_C),
@@ -77,14 +67,14 @@ module led_temp_simple(
         .zero(w_ZC)
     );
     
-    count #(.width(10)) cnt_delay(
+    count #(.width(11)) cnt_delay(
         .clk(clk1),
         .reset(w_RST_D),
         .inc(w_INC_D),
         .outc(count_delay)
     );
     
-    count #(.width(1)) count_index(
+    count #(.width(2)) count_index(
         .clk(clk1),
         .reset(w_RST_I),
         .inc(w_INC_I),
@@ -92,28 +82,16 @@ module led_temp_simple(
         .zero(w_ZI)
     );
     
-    lsr_led #(.init_value(20), .width(10)) lsr_led0(
-        .clk(clk1),
-        .load(w_LD),
-        .shift(w_SHD),
-        .s_A(delay)
-    );
-    
-    comp_4k #(.width(10)) compa(
+    comp_4k #(.width(11)) compa(
         .in1(delay),
         .in2(count_delay),
         .out(w_ZD)
     );
     
-    // GENERADOR DE PÍXELES - PATRÓN SIMPLE DE PRUEBA
-    wire [4:0] row = PIX_ADDR[10:6];
-    wire [5:0] col = PIX_ADDR[5:0];
-    
-    // Patrón: Rojo arriba, Azul abajo
-    wire upper_half = (row < 16);  // Primeras 16 filas
-    
-    assign pixel_data = upper_half ? 24'hF00000 :  // Rojo arriba
-                                     24'h00000F;   // Azul abajo
+    // Patrón simple: Rojo arriba, Azul abajo
+    wire [4:0] row_pos = PIX_ADDR[10:6];
+    wire upper_half = (row_pos < 16);
+    assign pixel_data = upper_half ? 24'hFF0000 : 24'h0000FF;
     
     mux_led mux0(
         .in0(pixel_data),
@@ -145,5 +123,3 @@ module led_temp_simple(
     );
 
 endmodule
-
-// Ya no necesitamos módulo separado - todo está integrado arriba

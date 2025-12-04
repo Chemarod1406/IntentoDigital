@@ -5,7 +5,7 @@ module lsr_led#(
   input clk;
   input load;
   input shift;
-  output reg [width:0]s_A;
+  output reg [(width-1):0]s_A;
 
 always @(negedge clk)
   if(load)

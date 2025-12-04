@@ -2,7 +2,7 @@
 
 module temp_display_top_final(
     input         clk,
-    input         rst,
+    input         rst,      // Botón con PULLUP (1=normal, 0=presionado)
     inout         I2C_SDA,
     output        I2C_SCL,
     output        LP_CLK,
@@ -13,7 +13,15 @@ module temp_display_top_final(
     output [2:0]  RGB1
 );
 
-    // I2C para sensor
+    // =========================================================================
+    // RESET SIMPLIFICADO - INVERTIDO CORRECTAMENTE
+    // =========================================================================
+    wire sys_rst = ~rst;  // rst=1 → sys_rst=0 (no reset)
+                          // rst=0 → sys_rst=1 (reset activo)
+
+    // =========================================================================
+    // INTERFAZ SENSOR I2C
+    // =========================================================================
     wire w_200KHz;
     wire [7:0] temp_celsius;
     wire [7:0] temp_fahrenheit;
@@ -34,11 +42,13 @@ module temp_display_top_final(
         .c(temp_celsius),
         .f(temp_fahrenheit)
     );
-    
-    // Matriz LED usando la estructura del profesor
+
+    // =========================================================================
+    // CONTROLADOR MATRIZ LED
+    // =========================================================================
     led_temp_simple matrix(
         .clk(clk),
-        .rst(rst),
+        .rst(sys_rst),
         .temp_c(temp_celsius),
         .temp_f(temp_fahrenheit),
         .LP_CLK(LP_CLK),

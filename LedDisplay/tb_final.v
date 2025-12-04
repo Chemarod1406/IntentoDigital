@@ -14,7 +14,7 @@ module tb_final;
     // Clock 25MHz
     initial begin
         clk = 0;
-        forever #20 clk = ~clk;
+        forever #20 clk = ~clk;  // 40ns = 25MHz
     end
     
     // Pull-ups I2C
@@ -41,26 +41,15 @@ module tb_final;
         .SCL(I2C_SCL)
     );
     
-    // Monitor de píxeles con debug
+    // Monitor de píxeles
     always @(posedge clk) begin
         if (!NOE && (RGB0 != 3'b000 || RGB1 != 3'b000)) begin
             pixel_count = pixel_count + 1;
-            if (pixel_count < 5) begin  // Mostrar solo los primeros
-                $display("[PIXEL] Row=%d RGB0=%b RGB1=%b", ROW, RGB0, RGB1);
+            if (pixel_count < 10) begin
+                $display("[t=%0t] PIXEL ENCENDIDO: Row=%d RGB0=%b RGB1=%b", 
+                         $time, ROW, RGB0, RGB1);
             end
         end
-    end
-    
-    // Debug del generador de píxeles
-    initial begin
-        #15_000_000;  // Después de 15ms
-        $display("\n[DEBUG] Estado interno:");
-        $display("  pixel_data=%h", dut.matrix.pixel_data);
-        $display("  RGB0=%b RGB1=%b (después del MUX)", RGB0, RGB1);
-        $display("  index=%b", dut.matrix.index);
-        $display("  NOE=%b (0=encendido, 1=apagado)", NOE);
-        $display("  tmp_noe=%b tmp_latch=%b", dut.matrix.tmp_noe, dut.matrix.tmp_latch);
-        $display("  Estado FSM ctrl: state=%h", dut.matrix.ctrl0.state);
     end
     
     // Detector de frames
@@ -68,52 +57,87 @@ module tb_final;
     always @(posedge clk) begin
         if (ROW == 0 && last_row != 0) begin
             frame_count = frame_count + 1;
-            $display("[Frame %0d] - Píxeles: %0d", frame_count, pixel_count);
-            pixel_count = 0;
+            $display("[Frame %0d completado] Píxeles vistos: %0d", frame_count, pixel_count);
         end
         last_row = ROW;
     end
     
-    // Test
+    // Debug cada 1ms
     initial begin
-        $display("\n=== TEST TEMPERATURA CON ESTRUCTURA DEL PROFESOR ===\n");
+        forever begin
+            #1_000_000;  // 1ms
+            if ($time > 1_000_000) begin  // Después de 1ms
+                $display("[t=%0tms] sys_rst=%b rst_in=%b FSM=%h clk1=%b init=%b", 
+                         $time/1000000, dut.sys_rst, rst,
+                         dut.matrix.ctrl0.state, dut.matrix.clk1, dut.matrix.ctrl0.init);
+                
+                if (dut.matrix.ctrl0.state != 0) begin
+                    $display("  → FSM en estado %h! delay=%d count=%d ZD=%b", 
+                             dut.matrix.ctrl0.state,
+                             dut.matrix.delay, dut.matrix.count_delay, dut.matrix.w_ZD);
+                end
+            end
+        end
+    end
+    
+    // Test principal
+    initial begin
+        $display("\n╔══════════════════════════════════════╗");
+        $display("║ TEST TEMPERATURA LED MATRIX          ║");
+        $display("╚══════════════════════════════════════╝\n");
+        
         $dumpfile("final_test.vcd");
         $dumpvars(0, tb_final);
         
-        rst = 0;
-        #100;
-        rst = 1;
-        #100;
-        rst = 0;
-        
-        $display("[INFO] Esperando temperatura...");
-        wait(dut.temp_celsius != 0);
+        // Reset simple
+        rst = 0;  // Reset activo
+        #200;
+        rst = 1;  // Liberar reset
         #1000;
         
-        $display("\n=== TEMPERATURA ===");
-        $display("  Celsius:    %0d°C", dut.temp_celsius);
-        $display("  Fahrenheit: %0d°F", dut.temp_fahrenheit);
-        $display("===================\n");
+        $display("[INFO] Reset liberado, sistema iniciando...");
         
-        $display("[INFO] Esperando frames...");
-        wait(frame_count >= 3);
+        // Esperar temperatura
+        $display("[INFO] Esperando lectura de temperatura...");
+        wait(dut.temp_celsius != 0);
         #10000;
         
-        $display("\n=== RESULTADOS ===");
-        $display("Frames: %0d", frame_count);
-        if (frame_count > 0)
-            $display("✅ Sistema funcionando");
-        else
-            $display("❌ No hay frames");
-        $display("==================\n");
+        $display("\n╔══════════════════════════════════════╗");
+        $display("║ TEMPERATURA LEÍDA                    ║");
+        $display("╠══════════════════════════════════════╣");
+        $display("║  Celsius:    %2d°C                   ║", dut.temp_celsius);
+        $display("║  Fahrenheit: %2d°F                   ║", dut.temp_fahrenheit);
+        $display("╚══════════════════════════════════════╝\n");
+        
+        // Esperar varios frames
+        $display("[INFO] Esperando frames de video...");
+        wait(frame_count >= 3);
+        #100000;
+        
+        $display("\n╔══════════════════════════════════════╗");
+        $display("║ RESULTADOS                           ║");
+        $display("╠══════════════════════════════════════╣");
+        $display("║  Frames completos: %2d                ║", frame_count);
+        $display("║  Píxeles totales:  %5d             ║", pixel_count);
+        
+        if (frame_count >= 3 && pixel_count > 100) begin
+            $display("║  Estado: ✅ EXITOSO                  ║");
+        end else begin
+            $display("║  Estado: ❌ FALLO                    ║");
+            $display("║  - Frames esperados: >= 3            ║");
+            $display("║  - Píxeles esperados: > 100          ║");
+        end
+        
+        $display("╚══════════════════════════════════════╝\n");
         
         $finish;
     end
     
-    // Timeout
+    // Timeout de seguridad
     initial begin
         #50_000_000;  // 50ms
-        $display("\n⏱️ TIMEOUT");
+        $display("\n⏱️ TIMEOUT - Test excedió 50ms");
+        $display("Frames: %0d, Píxeles: %0d", frame_count, pixel_count);
         $finish;
     end
 

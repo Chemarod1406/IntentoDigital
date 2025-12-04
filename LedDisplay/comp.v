@@ -1,8 +1,8 @@
 module comp_4k#(
   parameter width = 10
 )(
-  input [width:0]  in1,
-  input [width:0]  in2,  
+  input [(width-1):0]  in1,
+  input [(width-1):0]  in2,  
   output  reg       out
 );
 
