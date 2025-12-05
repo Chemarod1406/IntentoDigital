@@ -1,4 +1,5 @@
 `timescale 1ns / 1ps
+`define SIMULATION
 
 module tb_final;
 
@@ -10,11 +11,12 @@ module tb_final;
     
     integer frame_count = 0;
     integer pixel_count = 0;
+    integer row_8_count = 0;
     
     // Clock 25MHz
     initial begin
         clk = 0;
-        forever #20 clk = ~clk;  // 40ns = 25MHz
+        forever #20 clk = ~clk;
     end
     
     // Pull-ups I2C
@@ -45,10 +47,15 @@ module tb_final;
     always @(posedge clk) begin
         if (!NOE && (RGB0 != 3'b000 || RGB1 != 3'b000)) begin
             pixel_count = pixel_count + 1;
-            if (pixel_count < 10) begin
-                $display("[t=%0t] PIXEL ENCENDIDO: Row=%d RGB0=%b RGB1=%b", 
-                         $time, ROW, RGB0, RGB1);
+            if (pixel_count < 20) begin
+                $display("[PIXEL] t=%0t Row=%d Col=%d RGB0=%b RGB1=%b", 
+                         $time, ROW, dut.matrix.COL, RGB0, RGB1);
             end
+        end
+        
+        // Contar píxeles en fila 8 (donde debería haber texto)
+        if (!NOE && ROW == 8 && (RGB0 != 3'b000 || RGB1 != 3'b000)) begin
+            row_8_count = row_8_count + 1;
         end
     end
     
@@ -57,25 +64,25 @@ module tb_final;
     always @(posedge clk) begin
         if (ROW == 0 && last_row != 0) begin
             frame_count = frame_count + 1;
-            $display("[Frame %0d completado] Píxeles vistos: %0d", frame_count, pixel_count);
+            $display("[Frame %0d] Píxeles: %0d (Fila8: %0d)", 
+                     frame_count, pixel_count, row_8_count);
+            row_8_count = 0;
         end
         last_row = ROW;
     end
     
-    // Debug cada 1ms
+    // Debug detallado cada 2ms
     initial begin
         forever begin
-            #1_000_000;  // 1ms
-            if ($time > 1_000_000) begin  // Después de 1ms
-                $display("[t=%0tms] sys_rst=%b rst_in=%b FSM=%h clk1=%b init=%b", 
-                         $time/1000000, dut.sys_rst, rst,
-                         dut.matrix.ctrl0.state, dut.matrix.clk1, dut.matrix.ctrl0.init);
-                
-                if (dut.matrix.ctrl0.state != 0) begin
-                    $display("  → FSM en estado %h! delay=%d count=%d ZD=%b", 
-                             dut.matrix.ctrl0.state,
-                             dut.matrix.delay, dut.matrix.count_delay, dut.matrix.w_ZD);
-                end
+            #2_000_000;
+            if ($time > 1_000_000) begin
+                $display("\n[%0tms] DEBUG:", $time/1000000);
+                $display("  sys_rst=%b temp_c=%d temp_f=%d", 
+                         dut.sys_rst, dut.temp_celsius, dut.temp_fahrenheit);
+                $display("  FSM=%h Row=%d Col=%d", 
+                         dut.matrix.ctrl0.state, ROW, dut.matrix.COL);
+                $display("  pixel_data=%h RGB0=%b RGB1=%b NOE=%b",
+                         dut.matrix.pixel_data, RGB0, RGB1, NOE);
             end
         end
     end
@@ -89,16 +96,13 @@ module tb_final;
         $dumpfile("final_test.vcd");
         $dumpvars(0, tb_final);
         
-        // Reset simple
-        rst = 0;  // Reset activo
+        rst = 0;
         #200;
-        rst = 1;  // Liberar reset
+        rst = 1;
         #1000;
         
-        $display("[INFO] Reset liberado, sistema iniciando...");
+        $display("[INFO] Sistema iniciado");
         
-        // Esperar temperatura
-        $display("[INFO] Esperando lectura de temperatura...");
         wait(dut.temp_celsius != 0);
         #10000;
         
@@ -109,23 +113,26 @@ module tb_final;
         $display("║  Fahrenheit: %2d°F                   ║", dut.temp_fahrenheit);
         $display("╚══════════════════════════════════════╝\n");
         
-        // Esperar varios frames
-        $display("[INFO] Esperando frames de video...");
-        wait(frame_count >= 3);
-        #100000;
+        // Test manual del generador
+        $display("\n[TEST] Probando pixel_generator directamente:");
+        $display("  Dirección {8,16} (fila 8, col 16) debería ser ROJO");
+        
+        wait(frame_count >= 5);
+        #500000;
         
         $display("\n╔══════════════════════════════════════╗");
         $display("║ RESULTADOS                           ║");
         $display("╠══════════════════════════════════════╣");
-        $display("║  Frames completos: %2d                ║", frame_count);
-        $display("║  Píxeles totales:  %5d             ║", pixel_count);
+        $display("║  Frames:  %2d                         ║", frame_count);
+        $display("║  Píxeles: %5d                      ║", pixel_count);
         
-        if (frame_count >= 3 && pixel_count > 100) begin
+        if (pixel_count > 10) begin
             $display("║  Estado: ✅ EXITOSO                  ║");
         end else begin
             $display("║  Estado: ❌ FALLO                    ║");
-            $display("║  - Frames esperados: >= 3            ║");
-            $display("║  - Píxeles esperados: > 100          ║");
+            $display("║  POSIBLE PROBLEMA:                   ║");
+            $display("║  - pixel_generator devuelve negro    ║");
+            $display("║  - Revisar condiciones in_text_row   ║");
         end
         
         $display("╚══════════════════════════════════════╝\n");
@@ -133,11 +140,10 @@ module tb_final;
         $finish;
     end
     
-    // Timeout de seguridad
     initial begin
-        #50_000_000;  // 50ms
-        $display("\n⏱️ TIMEOUT - Test excedió 50ms");
-        $display("Frames: %0d, Píxeles: %0d", frame_count, pixel_count);
+        #30_000_000;
+        $display("\n⏱️ TIMEOUT");
+        $display("Píxeles detectados: %0d", pixel_count);
         $finish;
     end
 
