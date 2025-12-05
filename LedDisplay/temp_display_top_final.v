@@ -44,9 +44,9 @@ module temp_display_top_final(
     );
 
     // =========================================================================
-    // CONTROLADOR MATRIZ LED
+    // CONTROLADOR MATRIZ LED CON DISPLAY DE TEMPERATURA
     // =========================================================================
-    led_temp_simple matrix(
+    led_temp_with_display matrix(
         .clk(clk),
         .rst(sys_rst),
         .temp_c(temp_celsius),
