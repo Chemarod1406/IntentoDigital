@@ -23,7 +23,7 @@ module led_temp_with_display(
     wire PX_CLK_EN;
     
     wire [5:0] COL;
-    wire [11:0] PIX_ADDR;
+    wire [10:0] PIX_ADDR;  // ROW[4:0] + COL[5:0] = 11 bits
     wire [23:0] pixel_data;
     
     wire tmp_noe, tmp_latch;
