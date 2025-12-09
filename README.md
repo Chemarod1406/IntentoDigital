@@ -1,3 +1,10 @@
+### Universidad Nacional de Colombia
+
+## Autores
+- Juan Sebastian Carrascal Acosta - CC. 1005221054
+- Jose Manuel Rodríguez Sandoval - CC. 1052384337 
+- Nicolas Coronado Perez - CC. 1002551574
+
 # Termómetro Digital con Matriz LED 64x64
 
 Sistema embebido en FPGA que lee temperatura de un sensor LM75 vía I2C y la muestra en una matriz LED HUB75.
