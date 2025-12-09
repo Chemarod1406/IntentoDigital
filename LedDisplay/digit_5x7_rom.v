@@ -3,7 +3,7 @@ module digit_5x7_rom(
     input [3:0] digit,      
     input [2:0] row,        
     output reg [6:0] pixel_row  
-
+);
     always @(*) begin
         case (digit)
             4'd0: begin  

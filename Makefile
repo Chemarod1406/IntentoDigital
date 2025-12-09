@@ -1,4 +1,3 @@
-# Makefile para proyecto de temperatura con LED matrix
 TARGET = temp_display_final
 TOP = temp_display_top_final
 BUILD_DIR = build
@@ -8,7 +7,6 @@ DIR_SENSOR = SensorTemp
 
 LPF_FILE = $(DIR_LED)/colorlight_5a.lpf
 
-# Archivos fuente
 LED_CTRL = $(DIR_LED)/count.v \
            $(DIR_LED)/comp.v \
            $(DIR_LED)/ctrl_lp4k.v \
@@ -41,25 +39,21 @@ $(BUILD_DIR):
 clean:
 	rm -rf $(BUILD_DIR) *.vcd a.out
 
-# Simulacion
 sim:
 	iverilog -g2009 -o a.out $(TB_SRCS) $(ALL_SRCS)
 	vvp a.out
 
-# Sintesis
+
 $(BUILD_DIR)/$(TARGET).json: $(ALL_SRCS) | $(BUILD_DIR)
 	yosys -p "read_verilog $(ALL_SRCS); synth_ecp5 -top $(TOP) -json $@"
 
-# Place & Route
 $(BUILD_DIR)/$(TARGET).config: $(BUILD_DIR)/$(TARGET).json
 	nextpnr-ecp5 --25k --package CABGA256 --speed 6 \
 		--json $< --lpf $(LPF_FILE) --textcfg $@ \
 		--lpf-allow-unconstrained --timing-allow-fail
 
-# Generar bitstream
 $(BUILD_DIR)/$(TARGET).bit: $(BUILD_DIR)/$(TARGET).config
 	ecppack --compress $< --bit $@
 
-# Programar FPGA
 prog: $(BUILD_DIR)/$(TARGET).bit
 	sudo openFPGALoader -c ft232RL --pins=TXD:CTS:DTR:RXD -m $<
