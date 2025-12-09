@@ -8,17 +8,13 @@ module tb_top;
     wire [7:0] AN;
     wire [15:0] LED;
 
-    // Generación de Reloj (25MHz)
     initial begin
         CLK100MHZ = 1'b0;
         forever #20 CLK100MHZ = ~CLK100MHZ; 
     end
 
-    // --- PULL-UP RESISTOR SIMULADO ---
-    // Esto es vital: Si nadie conduce SDA, vale '1', no 'Z'.
     pullup(TMP_SDA);
     pullup(TMP_SCL);
-    // ---------------------------------
 
     top dut (
         .CLK100MHZ(CLK100MHZ),
@@ -40,7 +36,6 @@ module tb_top;
         
         $display("=== Iniciando Simulación ===");
         
-        // Esperar lo suficiente para ver datos estables
         #40000000; 
         
         $display("Temp Celsius (Esperado 30): %d", dut.c_data);

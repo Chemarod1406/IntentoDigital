@@ -1,13 +1,12 @@
 `timescale 1ns / 1ps
 module digit_5x7_rom(
-    input [3:0] digit,      // Dígito a mostrar (0-9)
-    input [2:0] row,        // Fila actual (0-6)
-    output reg [6:0] pixel_row  // 7 bits: 5 para columnas + 2 padding
-);
+    input [3:0] digit,      
+    input [2:0] row,        
+    output reg [6:0] pixel_row  
 
     always @(*) begin
         case (digit)
-            4'd0: begin  // Dígito 0
+            4'd0: begin  
                 case (row)
                     3'd0: pixel_row = 7'b0011100;
                     3'd1: pixel_row = 7'b0100010;
@@ -20,7 +19,7 @@ module digit_5x7_rom(
                 endcase
             end
             
-            4'd1: begin  // Dígito 1
+            4'd1: begin  
                 case (row)
                     3'd0: pixel_row = 7'b0001000;
                     3'd1: pixel_row = 7'b0011000;
@@ -33,7 +32,7 @@ module digit_5x7_rom(
                 endcase
             end
             
-            4'd2: begin  // Dígito 2
+            4'd2: begin  
                 case (row)
                     3'd0: pixel_row = 7'b0011100;
                     3'd1: pixel_row = 7'b0100010;
@@ -46,7 +45,7 @@ module digit_5x7_rom(
                 endcase
             end
             
-            4'd3: begin  // Dígito 3
+            4'd3: begin         
                 case (row)
                     3'd0: pixel_row = 7'b0011100;
                     3'd1: pixel_row = 7'b0100010;
@@ -59,7 +58,7 @@ module digit_5x7_rom(
                 endcase
             end
             
-            4'd4: begin  // Dígito 4
+            4'd4: begin  
                 case (row)
                     3'd0: pixel_row = 7'b0000100;
                     3'd1: pixel_row = 7'b0001100;
@@ -72,7 +71,7 @@ module digit_5x7_rom(
                 endcase
             end
             
-            4'd5: begin  // Dígito 5
+            4'd5: begin  
                 case (row)
                     3'd0: pixel_row = 7'b0111110;
                     3'd1: pixel_row = 7'b0100000;
@@ -85,7 +84,7 @@ module digit_5x7_rom(
                 endcase
             end
             
-            4'd6: begin  // Dígito 6
+            4'd6: begin  
                 case (row)
                     3'd0: pixel_row = 7'b0001100;
                     3'd1: pixel_row = 7'b0010000;
@@ -98,7 +97,7 @@ module digit_5x7_rom(
                 endcase
             end
             
-            4'd7: begin  // Dígito 7
+            4'd7: begin  
                 case (row)
                     3'd0: pixel_row = 7'b0111110;
                     3'd1: pixel_row = 7'b0000010;
@@ -111,7 +110,7 @@ module digit_5x7_rom(
                 endcase
             end
             
-            4'd8: begin  // Dígito 8
+            4'd8: begin  
                 case (row)
                     3'd0: pixel_row = 7'b0011100;
                     3'd1: pixel_row = 7'b0100010;
@@ -124,7 +123,7 @@ module digit_5x7_rom(
                 endcase
             end
             
-            4'd9: begin  // Dígito 9
+            4'd9: begin     
                 case (row)
                     3'd0: pixel_row = 7'b0011100;
                     3'd1: pixel_row = 7'b0100010;

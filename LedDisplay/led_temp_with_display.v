@@ -23,14 +23,13 @@ module led_temp_with_display(
     wire PX_CLK_EN;
     
     wire [5:0] COL;
-    wire [10:0] PIX_ADDR;  // ROW[4:0] + COL[5:0] = 11 bits
+    wire [10:0] PIX_ADDR;  
     wire [23:0] pixel_data;
     
     wire tmp_noe, tmp_latch;
     assign LATCH = ~tmp_latch;
     assign NOE = tmp_noe;
 
-    // Reloj dividido para la matriz (~8MHz desde 25MHz)
     reg clk1;
     reg [4:0] clk_counter;
     
@@ -50,11 +49,9 @@ module led_temp_with_display(
     
     assign PIX_ADDR = {ROW, COL};
     assign LP_CLK = clk1 & PX_CLK_EN;
-    assign delay = 11'd10;  // Delay fijo para brillo
+    assign delay = 11'd10;  
 
-    // =========================================================================
-    // CONTADORES
-    // =========================================================================
+    
     count #(.width(5))  count_row(
         .clk(clk1),
         .reset(w_RST_R),
@@ -86,19 +83,14 @@ module led_temp_with_display(
         .zero(w_ZI)
     );
     
-    // =========================================================================
-    // COMPARADOR PARA DELAY
-    // =========================================================================
+    
     comp_4k #(.width(11)) compa(
         .in1(delay),
         .in2(count_delay),
         .out(w_ZD)
     );
     
-    // =========================================================================
-    // GENERADOR DE PÍXELES CON TEMPERATURA
-    // Este módulo genera los dígitos de temperatura en la posición correcta
-    // =========================================================================
+    
     temp_pixel_generator pixel_gen(
         .celsius(temp_c),
         .fahrenheit(temp_f),
@@ -106,22 +98,17 @@ module led_temp_with_display(
         .pixel_data(pixel_data)
     );
     
-    // =========================================================================
-    // MULTIPLEXOR PARA PWM DE 4 BITS
-    // =========================================================================
+    
     mux_led mux0(
         .in0(pixel_data),
         .out0({RGB0, RGB1}),
         .sel(index)
     );
     
-    // =========================================================================
-    // CONTROLADOR FSM
-    // =========================================================================
     ctrl_lp4k ctrl0(
         .clk(clk1),
         .rst(rst),
-        .init(1'b1),  // Siempre activo después del reset
+        .init(1'b1),  
         .ZR(w_ZR),
         .ZC(w_ZC),
         .ZD(w_ZD),

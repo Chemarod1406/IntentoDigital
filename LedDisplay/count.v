@@ -9,7 +9,7 @@ module count#(
 );
 
 always @(negedge clk) begin
-  if(reset)  // ← CAMBIO: reset activo ALTO (sin ~)
+  if(reset)  
     outc <= 0;
   else if(inc)
     outc <= outc + 1;

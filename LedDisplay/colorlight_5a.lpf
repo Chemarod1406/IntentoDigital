@@ -1,45 +1,29 @@
 BLOCK RESETPATHS;
 BLOCK ASYNCPATHS;
 
-# ==========================================
-# I2C para Sensor de Temperatura LM75
-# ==========================================
+
 LOCATE COMP "I2C_SDA" SITE "C4";
 IOBUF PORT "I2C_SDA" IO_TYPE=LVCMOS33 PULLMODE=UP;
 
 LOCATE COMP "I2C_SCL" SITE "D4";
 IOBUF PORT "I2C_SCL" IO_TYPE=LVCMOS33 PULLMODE=UP;
 
-# ==========================================
-# Clock Principal (25MHz en la Colorlight)
-# ==========================================
 LOCATE COMP    "clk" SITE "P6";
 IOBUF PORT     "clk" IO_TYPE=LVCMOS33;
 FREQUENCY PORT "clk" 25.0 MHz;
 
-# ==========================================
-# Reset Button (con PULLUP)
-# ==========================================
 LOCATE COMP    "rst" SITE "R7";
 IOBUF PORT     "rst" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
 
-# ==========================================
-# Señales del Panel LED HUB75
-# ==========================================
-
-# Clock del Panel (generado internamente)
 LOCATE COMP    "LP_CLK" SITE "M3";
 IOBUF PORT     "LP_CLK" IO_TYPE=LVCMOS33;
 
-# Latch - Captura los datos en los registros
 LOCATE COMP    "LATCH" SITE "N1";
 IOBUF PORT     "LATCH" IO_TYPE=LVCMOS33;
 
-# NOE (Not Output Enable) - Activo bajo para encender LEDs
 LOCATE COMP    "NOE" SITE "M4";
 IOBUF PORT     "NOE" IO_TYPE=LVCMOS33;
 
-# ROW Select (A, B, C, D, E) - Selecciona qué fila se muestra
 LOCATE COMP    "ROW[0]" SITE "N5";
 IOBUF PORT     "ROW[0]" IO_TYPE=LVCMOS33;
 
@@ -55,22 +39,21 @@ IOBUF PORT     "ROW[3]" IO_TYPE=LVCMOS33;
 LOCATE COMP    "ROW[4]" SITE "N4";
 IOBUF PORT     "ROW[4]" IO_TYPE=LVCMOS33;
 
-# RGB0 - Mitad Superior del Panel (R0, G0, B0)
-LOCATE COMP    "RGB0[0]" SITE "J13";  # B0
+LOCATE COMP    "RGB0[0]" SITE "J13";  
 IOBUF PORT     "RGB0[0]" IO_TYPE=LVCMOS33;
 
-LOCATE COMP    "RGB0[1]" SITE "K13";  # G0
+LOCATE COMP    "RGB0[1]" SITE "K13"; 
 IOBUF PORT     "RGB0[1]" IO_TYPE=LVCMOS33;
 
-LOCATE COMP    "RGB0[2]" SITE "J12";  # R0
+LOCATE COMP    "RGB0[2]" SITE "J12";  
 IOBUF PORT     "RGB0[2]" IO_TYPE=LVCMOS33;
 
-# RGB1 - Mitad Inferior del Panel (R1, G1, B1)
-LOCATE COMP    "RGB1[0]" SITE "H13";  # B1
+
+LOCATE COMP    "RGB1[0]" SITE "H13";  
 IOBUF PORT     "RGB1[0]" IO_TYPE=LVCMOS33;
 
-LOCATE COMP    "RGB1[1]" SITE "H12";  # G1
+LOCATE COMP    "RGB1[1]" SITE "H12"; 
 IOBUF PORT     "RGB1[1]" IO_TYPE=LVCMOS33;
 
-LOCATE COMP    "RGB1[2]" SITE "G12";  # R1
+LOCATE COMP    "RGB1[2]" SITE "G12"; 
 IOBUF PORT     "RGB1[2]" IO_TYPE=LVCMOS33;

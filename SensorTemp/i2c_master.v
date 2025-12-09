@@ -1,5 +1,4 @@
 `timescale 1ns / 1ps
-// I2C Master CORREGIDO - Muestreo correcto en flanco positivo de SCL
 module i2c_master(
     input clk_200KHz,
     inout SDA,
@@ -7,12 +6,10 @@ module i2c_master(
     output SCL
     );
     
-    // *** GENERATE 10kHz SCL clock from 200kHz ***
     reg [3:0] counter = 4'b0;
     reg clk_reg = 1'b1; 
     assign SCL = clk_reg;
     
-    // Signals
     parameter [7:0] sensor_address_plus_read = 8'b1001_0001;
     
     reg [7:0] tMSB = 8'h00;
@@ -22,12 +19,10 @@ module i2c_master(
     reg [11:0] count = 12'b0;
     reg [7:0] temp_data_reg = 8'h00;
     
-    // CRITICAL: Sample SDA only when SCL is high
     reg sda_sample = 1'b1;
     
     assign temp_data = temp_data_reg;
 
-    // State Declarations
     localparam [4:0] POWER_UP   = 5'h00,
                      START      = 5'h01,
                      SEND_ADDR6 = 5'h02,
@@ -60,16 +55,13 @@ module i2c_master(
       
     reg [4:0] state_reg = POWER_UP;
     
-    // Sample SDA when SCL goes high (middle of clock high period)
+    
     always @(posedge clk_200KHz) begin
-        // Sample at count values where SCL should be stable high
-        // SCL toggles every 10 counts, so sample at +5 offset
         if (counter == 4'd5 && clk_reg == 1'b1)
             sda_sample <= SDA;
     end
                         
     always @(posedge clk_200KHz) begin
-        // Clock generator
         if(counter == 9) begin
             counter <= 4'b0;
             clk_reg <= ~clk_reg;
@@ -79,7 +71,6 @@ module i2c_master(
 
         count <= count + 1;
         
-        // State Machine Logic
         case(state_reg)
             POWER_UP: begin
                 sda_oe <= 1'b1;
@@ -91,7 +82,7 @@ module i2c_master(
             START: begin
                 sda_oe <= 1'b1;
                 if(count == 12'd2004)
-                    o_bit <= 1'b0;  // START condition
+                    o_bit <= 1'b0;  
                 if(count == 12'd2013)
                     state_reg <= SEND_ADDR6;
             end
@@ -149,7 +140,7 @@ module i2c_master(
                 sda_oe <= 1'b1;
                 o_bit <= sensor_address_plus_read[0];
                 if(count == 12'd2169) begin
-                    sda_oe <= 1'b0;  // Release for ACK
+                    sda_oe <= 1'b0;  
                     state_reg <= REC_ACK;
                 end
             end
@@ -162,7 +153,7 @@ module i2c_master(
             
             REC_MSB7: begin
                 sda_oe <= 1'b0;
-                if(count == 12'd2199)  // Sample in middle of bit
+                if(count == 12'd2199)  
                     tMSB[7] <= sda_sample;
                 if(count == 12'd2209)
                     state_reg <= REC_MSB6;
@@ -226,7 +217,7 @@ module i2c_master(
             
             SEND_ACK: begin
                 sda_oe <= 1'b1;
-                o_bit <= 1'b0;  // Send ACK
+                o_bit <= 1'b0;  
                 if(count == 12'd2369) begin
                     sda_oe <= 1'b0;
                     state_reg <= REC_LSB7;
@@ -299,17 +290,17 @@ module i2c_master(
             
             NACK: begin
                 sda_oe <= 1'b1;
-                o_bit <= 1'b1;  // NACK
+                o_bit <= 1'b1;  
                 if(count == 12'd2559) begin
                     count <= 12'd2000;
                     state_reg <= START;
-                    temp_data_reg <= tMSB;  // Update output
+                    temp_data_reg <= tMSB;  
                 end
             end
         endcase
     end
     
-    // SDA tri-state control
+    
     assign SDA = sda_oe ? o_bit : 1'bz;
  
 endmodule

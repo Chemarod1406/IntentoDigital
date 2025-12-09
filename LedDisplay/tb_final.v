@@ -13,17 +13,14 @@ module tb_final;
     integer pixel_count = 0;
     integer row_8_count = 0;
     
-    // Clock 25MHz
     initial begin
         clk = 0;
         forever #20 clk = ~clk;
     end
     
-    // Pull-ups I2C
     pullup(I2C_SDA);
     pullup(I2C_SCL);
     
-    // DUT
     temp_display_top_final dut(
         .clk(clk),
         .rst(rst),
@@ -37,13 +34,13 @@ module tb_final;
         .RGB1(RGB1)
     );
     
-    // Sensor I2C
+   
     i2c_slave_lm75_model sensor(
         .SDA(I2C_SDA),
         .SCL(I2C_SCL)
     );
     
-    // Monitor de píxeles
+    
     always @(posedge clk) begin
         if (!NOE && (RGB0 != 3'b000 || RGB1 != 3'b000)) begin
             pixel_count = pixel_count + 1;
@@ -53,13 +50,11 @@ module tb_final;
             end
         end
         
-        // Contar píxeles en fila 8 (donde debería haber texto)
         if (!NOE && ROW == 8 && (RGB0 != 3'b000 || RGB1 != 3'b000)) begin
             row_8_count = row_8_count + 1;
         end
     end
     
-    // Detector de frames
     reg [4:0] last_row = 31;
     always @(posedge clk) begin
         if (ROW == 0 && last_row != 0) begin
@@ -71,7 +66,6 @@ module tb_final;
         last_row = ROW;
     end
     
-    // Debug detallado cada 2ms
     initial begin
         forever begin
             #2_000_000;
@@ -87,11 +81,9 @@ module tb_final;
         end
     end
     
-    // Test principal
+    
     initial begin
-        $display("\n╔══════════════════════════════════════╗");
-        $display("║ TEST TEMPERATURA LED MATRIX          ║");
-        $display("╚══════════════════════════════════════╝\n");
+        $display("TEST TEMPERATURA LED MATRIX");
         
         $dumpfile("final_test.vcd");
         $dumpvars(0, tb_final);
@@ -106,43 +98,37 @@ module tb_final;
         wait(dut.temp_celsius != 0);
         #10000;
         
-        $display("\n╔══════════════════════════════════════╗");
-        $display("║ TEMPERATURA LEÍDA                    ║");
-        $display("╠══════════════════════════════════════╣");
-        $display("║  Celsius:    %2d°C                   ║", dut.temp_celsius);
-        $display("║  Fahrenheit: %2d°F                   ║", dut.temp_fahrenheit);
-        $display("╚══════════════════════════════════════╝\n");
+        $display("TEMPERATURA LEÍDA ");
+        $display("Celsius:    %2d°C ", dut.temp_celsius);
+        $display("Fahrenheit: %2d°F ", dut.temp_fahrenheit);
         
-        // Test manual del generador
+        
         $display("\n[TEST] Probando pixel_generator directamente:");
         $display("  Dirección {8,16} (fila 8, col 16) debería ser ROJO");
         
         wait(frame_count >= 5);
         #500000;
         
-        $display("\n╔══════════════════════════════════════╗");
-        $display("║ RESULTADOS                           ║");
-        $display("╠══════════════════════════════════════╣");
-        $display("║  Frames:  %2d                         ║", frame_count);
-        $display("║  Píxeles: %5d                      ║", pixel_count);
+        $display("RESULTADOS ");
+        $display("Frames:  %2d", frame_count);
+        $display("Píxeles: %5d", pixel_count);
         
         if (pixel_count > 10) begin
-            $display("║  Estado: ✅ EXITOSO                  ║");
+            $display("Estado: EXITOSO");
         end else begin
-            $display("║  Estado: ❌ FALLO                    ║");
-            $display("║  POSIBLE PROBLEMA:                   ║");
-            $display("║  - pixel_generator devuelve negro    ║");
-            $display("║  - Revisar condiciones in_text_row   ║");
+            $display("Estado: FALLO");
+            $display("POSIBLE PROBLEMA:");
+            $display("- pixel_generator devuelve negro ");
+            $display("- Revisar condiciones in_text_row ");
         end
         
-        $display("╚══════════════════════════════════════╝\n");
         
         $finish;
     end
     
     initial begin
         #30_000_000;
-        $display("\n⏱️ TIMEOUT");
+        $display("\n TIMEOUT");
         $display("Píxeles detectados: %0d", pixel_count);
         $finish;
     end

@@ -62,4 +62,4 @@ $(BUILD_DIR)/$(TARGET).bit: $(BUILD_DIR)/$(TARGET).config
 
 # Programar FPGA
 prog: $(BUILD_DIR)/$(TARGET).bit
-	sudo openFPGALoader -c ft232RL --pins=TXD:CTS:DTR:RXD -m $
+	sudo openFPGALoader -c ft232RL --pins=TXD:CTS:DTR:RXD -m $<
